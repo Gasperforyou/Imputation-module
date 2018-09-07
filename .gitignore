@@ -1,4 +1,6 @@
-./data/**
+data
+.\outtt
+.\output
 *.csv
 *.metadata
 *.bin

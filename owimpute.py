@@ -3,24 +3,30 @@ import numpy
 from PyQt5 import QtCore, QtGui
 import Orange.data
 from Orange.data import Table
-
 from subprocess import call
-
 import os
 from sklearn.manifold import TSNE
-import matplotlib.pyplot as plt
-
-
+# import matplotlib.pyplot
+# import matplotlib.pyplot as p
 from scvi.dataset import CsvDataset, BreastCancerDataset, BrainSmallDataset, CortexDataset
-
 from scvi.models import *
-from scvi.inference import UnsupervisedTrainer
-
 
 from Orange.widgets.widget import OWWidget, Input, Output, settings
 from Orange.widgets import gui
-
 from Orange.preprocess import Impute, Average
+import rpy2
+from rpy2.robjects.packages import importr
+import rpy2.robjects.packages as rpackages
+from rpy2 import robjects as ro
+import csv
+from pandas import DataFrame, read_csv
+from rpy2.robjects import numpy2ri
+
+
+
+
+
+os.environ['TF_CPP_MIN_LOG_LEVEL']='0'
 
 
 class Impute(OWWidget):
@@ -47,14 +53,14 @@ class Impute(OWWidget):
     estimate = []
     compute = []
     path = ""
-    functions = {0: "flow", 1: "self.average()", 2: "self.median()", 3:"self.WMean_chisquared()", 4:"self.scvi()"}
+    functions = {0: "flow", 1: "self.average()", 2: "self.median()", 3:"self.WMean_chisquared()", 4:"self.scvi()", 5:"self.scvis()", 6:"self.pCMF()"}
     gene = ""
 
     def __init__(self, pat):
         super().__init__()
         self.path = pat
         self.listbox = gui.listBox(self.controlArea, self, "imputation_method", "methods" , box = "Imputation method")
-        self.methods = ["Flow through", "Average", "Median", "WMean_chisquared", "scVi"]
+        self.methods = ["Flow through", "Average", "Median", "WMean_chisquared", "scVi", "scvis", "pCMF"]
         self.imputation_method = gui.ControlledList([0], self.listbox)
         gui.button(self.controlArea, self, "Impute", callback=self.comm)
 
@@ -74,6 +80,7 @@ class Impute(OWWidget):
     def selection(self):
         if self.dataset is None:
             return
+
         if(self.imputation_method[0]<=3):
             self.impute()
         else:
@@ -81,15 +88,16 @@ class Impute(OWWidget):
             eval(func)
             print("Done!")
 
-
     def commit(self):
         if self.dataset is None:
             return
         self.Outputs.sample.send(self.dataset)
         Orange.data.Table.save(self.dataset, "output.csv")
+
         return
 
     def impute(self):
+
         func = self.functions[self.imputation_method[0]]
         if(func=="flow"):
             return
@@ -102,6 +110,17 @@ class Impute(OWWidget):
             self.gene = dom
             eval(func)
         print("Done!")
+        return
+
+    def prepare_data(self):
+        # local_csv_dataset = CsvDataset("tmp.csv", save_path="./")
+        # a = numpy.array([14, 21, 13, 56, 12])
+        # labels = ["ena", "dva", "tri", "štiri", "pet"]
+        # print(self.dataset.domain, self.dataset.W, self.dataset.metas)
+        if self.functions[self.imputation_method[0]] == "self.scvi()":
+            df2 = DataFrame(self.dataset.X,   columns=self.dataset.domain.variables).T.to_csv("tmp.csv")
+        if self.functions[self.imputation_method[0]] == "self.scvis()":
+            df2 = DataFrame(self.dataset.X,   columns=self.dataset.domain.variables).to_csv("tmp.csv", sep='\t')
         return
 
 
@@ -121,9 +140,12 @@ class Impute(OWWidget):
             self.dataset[d][self.gene] = avg
 
     def scvi(self):
+        from scvi.inference import UnsupervisedTrainer
         #datasetBreastCancer = BreastCancerDataset()
         #datasetBrainSmall = BrainSmallDataset()
-        dataset = CortexDataset()
+        #dataset = CortexDataset()
+        self.prepare_data()
+        dataset = CsvDataset("tmp.csv", save_path="./")
 
         n_epochs=400
         lr=1e-3
@@ -134,19 +156,83 @@ class Impute(OWWidget):
         trainer = UnsupervisedTrainer(vae, dataset ,train_size=0.75, use_cuda=use_cuda ,frequency=5)
         trainer.train(n_epochs=n_epochs, lr=lr)
 
-
-        ll_train_set = trainer.history["ll_train_set"]
-        ll_test_set = trainer.history["ll_test_set"]
-        x = numpy.linspace(0,500,(len(ll_train_set)))
-        plt.plot(x, ll_train_set)
-        plt.plot(x, ll_test_set)
-        plt.ylim(1150,1600)
-        plt.show()
-
-        trainer.train_set.show_t_sne(n_samples=400, color_by='labels')
+        indices = trainer.train_set.indices
+        self.dataset.X = trainer.train_set.sequential().imputation()
         return
 
-    def  scvis(self):
+    def scvis(self):
+        self.prepare_data()
+        call(["python", ".\scvis-dev\scvis", "train", "--data_matrix_file", ".\\tmp.csv", "--config_file", ".\\scvis-dev\\model_config.yaml" , "--show_plot", "--verbose", "--verbose_interval", "50", "--out_dir", ".\\output"])
+        data = read_csv(".\\output\\traned_data.tsv", sep="\t")
+        data = data.drop(data.columns[0], axis=1)
+        self.dataset.X = data.values
+        return
+
+    def pCMF(self):
+        utils = importr("utils")
+
+        # install packages
+        # ro.r('''   install.packages("devtools")
+        #             devtools::install_git("https://gitlab.inria.fr/gdurif/pCMF", subdir="pkg")
+        # ''')
+
+        d = {'print.me': 'print_dot_me', 'print_me': 'print_uscore_me'}
+        try:
+            pCMF = importr('pCMF', robject_translations = d, lib_loc = "C:/Users/Gasper/Documents/R/win-library/3.4")
+        except:
+            print("error")
+
+        try:
+            labeling = importr('labeling', robject_translations = d, lib_loc = "C:/Users/Gasper/Documents/R/win-library/3.4")
+        except:
+            print("error")
+        numpy2ri.activate()
+        nr,nc = self.dataset.X.shape
+        Br = ro.r.matrix(self.dataset.X, nrow=nr, ncol=nc)
+        ro.r.assign("dataset", Br)
+
+        ro.r('''
+
+        # n <- 9
+        # p <- 500
+        # K <- 10
+        # factorU <- generate_factor_matrix(n, K, ngroup=3, average_signal=60,
+        #                                   group_separation=0.8,
+        #                                   distribution="gamma",
+        #                                   shuffle_feature=TRUE)
+        # factorV <- generate_factor_matrix(p, K, ngroup=2, average_signal=60,
+        #                                   group_separation=0.8,
+        #                                   distribution="gamma",
+        #                                   shuffle_feature=TRUE,
+        #                                   prop_noise_feature=0.4,
+        #                                   noise_level=0.5)
+        # U <- factorU$factor_matrix
+        # V <- factorV$factor_matrix
+        # count_data <- generate_count_matrix(n, p, K, U, V,
+        #                                     ZI=TRUE, prob1=rep(0.5,p))
+        # X <- count_data$X
+        X <- dataset
+        print(dim(X))
+        # matrix_heatmap(X)
+
+        {res1 <- pCMF(X, K=2, verbose=TRUE, zero_inflation = TRUE,
+             sparsity = TRUE, ncores=8);}
+
+        # ## estimated probabilities
+        # matrix_heatmap(res1$sparse_param$prob_S)
+        # ## corresponding indicator (prob_S > threshold, where threshold = 0.5)
+        # matrix_heatmap(res1$sparse_param$S)
+        # ## rerun with genes that contributes
+        # res2 <- pCMF(X[,res1$sparse_param$prior_prob_S>0],
+        #              K=2, verbose=FALSE, zero_inflation = TRUE,
+        #              sparsity = FALSE, ncores=8)
+        #
+        # #hatU <- getU(res)
+        # #hatV <- getV(res)
+        #
+        # graphU(res2, axes=c(1,2), labels=factorU$feature_label)
+        ''')
+        numpy2ri.deactivate()
         return
 
 
@@ -154,6 +240,7 @@ class Impute(OWWidget):
 
 
 def main(argv=None):
+
     from AnyQt.QtWidgets import QApplication
     # PyQt changes argv list in-place
     app = QApplication(list(argv) if argv else [])
@@ -161,14 +248,12 @@ def main(argv=None):
     if len(argv) > 1:
         filename = argv[1]
     else:
-        filename = "./data/_sc_aml-1k.csv"
+        filename = "./data/ccp_normCountsBuettnerEtAl.counts.cycle_genes.csv"
 
     ow = Impute(filename)
     ow.show()
     ow.raise_()
-
     dataset = Orange.data.Table(filename)
-
     ow.set_data(dataset)
     ow.handleNewSignals()
     app.exec_()
