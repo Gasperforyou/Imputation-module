@@ -1013,7 +1013,7 @@ def test_main():
     a = QApplication(sys.argv)
     ow = OWDataTable()
 
-    iris = Table("output.csv")
+    iris = Table("pCMF.csv")
 
     ow.show()
     ow.raise_()

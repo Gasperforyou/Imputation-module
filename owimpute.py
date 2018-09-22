@@ -6,11 +6,9 @@ from Orange.data import Table
 from subprocess import call
 import os
 from sklearn.manifold import TSNE
-# import matplotlib.pyplot
-# import matplotlib.pyplot as p
+import matplotlib.pyplot as plt
 from scvi.dataset import CsvDataset, BreastCancerDataset, BrainSmallDataset, CortexDataset
 from scvi.models import *
-
 from Orange.widgets.widget import OWWidget, Input, Output, settings
 from Orange.widgets import gui
 from Orange.preprocess import Impute, Average
@@ -21,12 +19,11 @@ from rpy2 import robjects as ro
 import csv
 from pandas import DataFrame, read_csv
 from rpy2.robjects import numpy2ri
-
-
-
-
+import inspect
+import scipy
 
 os.environ['TF_CPP_MIN_LOG_LEVEL']='0'
+
 
 
 class Impute(OWWidget):
@@ -56,8 +53,11 @@ class Impute(OWWidget):
     functions = {0: "flow", 1: "self.average()", 2: "self.median()", 3:"self.WMean_chisquared()", 4:"self.scvi()", 5:"self.scvis()", 6:"self.pCMF()"}
     gene = ""
 
-    def __init__(self, pat):
+
+    def __init__(self, pat, zr, z = None):
         super().__init__()
+        self.zeros = z
+        self.test= numpy.array(zr)
         self.path = pat
         self.listbox = gui.listBox(self.controlArea, self, "imputation_method", "methods" , box = "Imputation method")
         self.methods = ["Flow through", "Average", "Median", "WMean_chisquared", "scVi", "scvis", "pCMF"]
@@ -91,9 +91,63 @@ class Impute(OWWidget):
     def commit(self):
         if self.dataset is None:
             return
-        self.Outputs.sample.send(self.dataset)
-        Orange.data.Table.save(self.dataset, "output.csv")
 
+        if self.zeros is not None:
+            self.dataset.X = self.dataset.X*self.zeros
+
+        self.Outputs.sample.send(self.dataset)
+        self.dataset.save("output.csv")
+
+        # original = Table("./data/ccp_normCountsBuettnerEtAl.counts.cycle_genes.csv")
+        original = read_csv(".\\original.csv", sep=",", header= None)
+        original = Table.from_numpy(Orange.data.Domain.from_numpy(original.values), original.values)
+
+        self.spearman(original)
+        print(self.spear[:, 0].mean())
+        Table.from_numpy(Orange.data.Domain.from_numpy(self.spear), self.spear).save("correlation_c.csv")
+        self.spearmanT(original)
+        print(self.spear[:, 0].mean())
+        Table.from_numpy(Orange.data.Domain.from_numpy(self.spear), self.spear).save("correlation_g.csv")
+        self.spearmanM(original)
+        print(self.spear[:, 0].mean())
+        Table.from_numpy(Orange.data.Domain.from_numpy(self.spear), self.spear).save("correlation_m.csv")
+        self.spearmanMT(original)
+        print(self.spear[:, 0].mean())
+        Table.from_numpy(Orange.data.Domain.from_numpy(self.spear), self.spear).save("correlation_n.csv")
+        p = scipy.stats.spearmanr(original.X, self.dataset.X, axis = None)
+        print(p)
+        return
+
+    def spearman(self, original):
+        vec = numpy.zeros((original.X.shape[0], 2))
+        for a in range(original.X.shape[0]):
+            vec[a, 0] = scipy.stats.spearmanr(original.X[a,:], self.dataset.X[a,:])[0]
+        self.spear = vec
+        return
+
+    def spearmanT(self, original):
+        vec = numpy.zeros((original.X.shape[1], 2))
+        for a in range(original.X.shape[1]):
+            vec[a, 0] = scipy.stats.spearmanr(original.X[:,a], self.dataset.X[:,a])[0]
+        self.spear = vec
+        return
+
+    def spearmanM(self, original):
+        x = numpy.ma.masked_array(original.X, mask = 1-self.test)
+        y = numpy.ma.masked_array(self.dataset.X, mask = 1-self.test)
+        vec = numpy.zeros((x.shape[0], 2))
+        for a in range(x.shape[0]):
+            vec[a, 0] = scipy.stats.mstats.spearmanr(x[a,:], y[a,:])[0]
+        self.spear = vec
+        return
+
+    def spearmanMT(self, original):
+        x = numpy.ma.masked_array(original.X, mask = 1-self.test)
+        y = numpy.ma.masked_array(self.dataset.X, mask = 1-self.test)
+        vec = numpy.zeros((x.shape[1], 2))
+        for a in range(x.shape[1]):
+            vec[a, 0] = scipy.stats.mstats.spearmanr(x[:,a], y[:,a])[0]
+        self.spear = vec
         return
 
     def impute(self):
@@ -113,14 +167,19 @@ class Impute(OWWidget):
         return
 
     def prepare_data(self):
-        # local_csv_dataset = CsvDataset("tmp.csv", save_path="./")
-        # a = numpy.array([14, 21, 13, 56, 12])
-        # labels = ["ena", "dva", "tri", "štiri", "pet"]
-        # print(self.dataset.domain, self.dataset.W, self.dataset.metas)
+
+        # if self.functions[self.imputation_method[0]] == "self.scvi()":
+        #     df2 = DataFrame(self.dataset.X.astype(int),   columns=self.dataset.domain.variables[:-1]).T.to_csv("tmp.csv")
+        # if self.functions[self.imputation_method[0]] == "self.scvis()":
+        #     df2 = DataFrame(self.dataset.X.astype(int),   columns=self.dataset.domain.variables[:-1]).to_csv("tmp.csv", sep='\t')
+
+        if self.functions[self.imputation_method[0]] == "self.pCMF()":
+            df2 = DataFrame(self.dataset.X).to_csv("tmp.csv", sep=',', header=None, index=False)
         if self.functions[self.imputation_method[0]] == "self.scvi()":
-            df2 = DataFrame(self.dataset.X,   columns=self.dataset.domain.variables).T.to_csv("tmp.csv")
+            df2 = DataFrame(self.dataset.X,  columns=self.dataset.domain.variables).T.to_csv("tmp.csv")
         if self.functions[self.imputation_method[0]] == "self.scvis()":
-            df2 = DataFrame(self.dataset.X,   columns=self.dataset.domain.variables).to_csv("tmp.csv", sep='\t')
+            df2 = DataFrame(self.dataset.X, columns=self.dataset.domain.variables).to_csv("tmp.csv", sep='\t')
+
         return
 
 
@@ -141,23 +200,25 @@ class Impute(OWWidget):
 
     def scvi(self):
         from scvi.inference import UnsupervisedTrainer
-        #datasetBreastCancer = BreastCancerDataset()
-        #datasetBrainSmall = BrainSmallDataset()
-        #dataset = CortexDataset()
         self.prepare_data()
-        dataset = CsvDataset("tmp.csv", save_path="./")
+        data = CsvDataset("tmp.csv", save_path="./", sep=',')
 
-        n_epochs=400
-        lr=1e-3
-        use_batches=False
+        n_epochs = 500
+        lr=1e-4
+        use_batches=True
         use_cuda=True
 
-        vae = VAE(dataset.nb_genes, n_batch=dataset.n_batches * use_batches)
-        trainer = UnsupervisedTrainer(vae, dataset ,train_size=0.75, use_cuda=use_cuda ,frequency=5)
+        vae = VAE(data.nb_genes, n_batch=data.n_batches * use_batches)
+        trainer = UnsupervisedTrainer(vae, data ,train_size=0.8, use_cuda=use_cuda ,frequency=5)
         trainer.train(n_epochs=n_epochs, lr=lr)
 
-        indices = trainer.train_set.indices
-        self.dataset.X = trainer.train_set.sequential().imputation()
+        indices1 = trainer.train_set.indices
+        indices2 = trainer.test_set.indices
+        datac = numpy.append(trainer.train_set.sequential().imputation(), trainer.test_set.sequential().imputation() , axis=0)
+        ind = numpy.append(indices1, indices2)
+        ind = numpy.argsort(ind)
+        self.dataset.X = datac[ind, :].astype(float)
+
         return
 
     def scvis(self):
@@ -169,13 +230,13 @@ class Impute(OWWidget):
         return
 
     def pCMF(self):
+        self.prepare_data()
         utils = importr("utils")
+        print(self.dataset.X.shape)
 
         # install packages
-        # ro.r('''   install.packages("devtools")
         #             devtools::install_git("https://gitlab.inria.fr/gdurif/pCMF", subdir="pkg")
         # ''')
-
         d = {'print.me': 'print_dot_me', 'print_me': 'print_uscore_me'}
         try:
             pCMF = importr('pCMF', robject_translations = d, lib_loc = "C:/Users/Gasper/Documents/R/win-library/3.4")
@@ -186,61 +247,111 @@ class Impute(OWWidget):
             labeling = importr('labeling', robject_translations = d, lib_loc = "C:/Users/Gasper/Documents/R/win-library/3.4")
         except:
             print("error")
-        numpy2ri.activate()
-        nr,nc = self.dataset.X.shape
-        Br = ro.r.matrix(self.dataset.X, nrow=nr, ncol=nc)
-        ro.r.assign("dataset", Br)
 
-        ro.r('''
+        print(ro.r('''
+        dat <- read.csv(file='tmp.csv', header = FALSE)
+        dat <- as.matrix(dat)
 
-        # n <- 9
-        # p <- 500
-        # K <- 10
-        # factorU <- generate_factor_matrix(n, K, ngroup=3, average_signal=60,
-        #                                   group_separation=0.8,
-        #                                   distribution="gamma",
-        #                                   shuffle_feature=TRUE)
-        # factorV <- generate_factor_matrix(p, K, ngroup=2, average_signal=60,
-        #                                   group_separation=0.8,
-        #                                   distribution="gamma",
-        #                                   shuffle_feature=TRUE,
-        #                                   prop_noise_feature=0.4,
-        #                                   noise_level=0.5)
-        # U <- factorU$factor_matrix
-        # V <- factorV$factor_matrix
-        # count_data <- generate_count_matrix(n, p, K, U, V,
-        #                                     ZI=TRUE, prob1=rep(0.5,p))
-        # X <- count_data$X
-        X <- dataset
-        print(dim(X))
-        # matrix_heatmap(X)
+        zeros <- as.vector(which(!(colSums(dat != 0) > 0)))
+        zeros_mat <- dat[,zeros]
 
-        {res1 <- pCMF(X, K=2, verbose=TRUE, zero_inflation = TRUE,
-             sparsity = TRUE, ncores=8);}
+        non_zeros <- as.vector(which((colSums(dat != 0) > 0)))
+        dat <- dat[, non_zeros]
 
-        # ## estimated probabilities
-        # matrix_heatmap(res1$sparse_param$prob_S)
-        # ## corresponding indicator (prob_S > threshold, where threshold = 0.5)
-        # matrix_heatmap(res1$sparse_param$S)
-        # ## rerun with genes that contributes
-        # res2 <- pCMF(X[,res1$sparse_param$prior_prob_S>0],
-        #              K=2, verbose=FALSE, zero_inflation = TRUE,
-        #              sparsity = FALSE, ncores=8)
-        #
-        # #hatU <- getU(res)
-        # #hatV <- getV(res)
-        #
-        # graphU(res2, axes=c(1,2), labels=factorU$feature_label)
-        ''')
-        numpy2ri.deactivate()
+
+        res1 <- pCMF(dat, K=2, verbose=TRUE, zero_inflation = FALSE,
+             sparsity = FALSE, ncores=8)
+
+
+        hatU <- getU(res1)
+        hatV <- getV(res1)
+
+
+        out <- hatU %*% t(hatV)
+        out<- unname(cbind(out, zeros_mat))
+        out <- out[, order(c(non_zeros, zeros))]
+        '''))
+
+        self.dataset.X = numpy.asarray(ro.r.out)
         return
 
+def generate():
+    utils = importr("utils")
+    d = {'print.me': 'print_dot_me', 'print_me': 'print_uscore_me'}
+    try:
+        pCMF = importr('pCMF', robject_translations = d, lib_loc = "C:/Users/Gasper/Documents/R/win-library/3.4")
+    except:
+        print("error")
 
+    try:
+        labeling = importr('labeling', robject_translations = d, lib_loc = "C:/Users/Gasper/Documents/R/win-library/3.4")
+    except:
+        print("error")
+    utils = importr("utils")
+    ro.r('''
+        n <- 100
+        p <- 300
+        K <- 3
+        factorU <- generate_factor_matrix(n, K, ngroup=3, average_signal=60,
+                                          group_separation=0.8,
+                                          distribution="gamma",
+                                          shuffle_feature=TRUE)
+        factorV <- generate_factor_matrix(p, K, ngroup=2, average_signal=60,
+                                          group_separation=0.8,
+                                          distribution="gamma",
+                                          shuffle_feature=TRUE,
+                                          prop_noise_feature=0.4,
+                                          noise_level=0.5)
+        U <- factorU$factor_matrix
+        V <- factorV$factor_matrix
+        count_data <- generate_count_matrix(n, p, K, U, V,
+                                            ZI=FALSE, prob1=rep(0.5,p))
+        X <- count_data$X
+        write.table(X, file = "original.csv",row.names=FALSE, na="",col.names=FALSE, sep=",")
+    ''')
+    return
 
+def zero_inflate():
+    return ro.r('''
+    dat <- read.csv(file='original.csv', header = FALSE)
+    dat <- as.matrix(dat)
+    m <- matrix(sample(0:1,nrow(dat)*ncol(dat), replace=TRUE, prob=c(1,2)),nrow(dat),ncol(dat))
+    dat <- dat*m
+    write.table(dat, file = "pCMF.csv",row.names=FALSE, na="",col.names=FALSE, sep=",")
+    zr <- (1-m)
+    '''), None
+
+def zero_inflate_bioloski():
+    utils = importr("utils")
+    numpy2ri.activate()
+
+    tab = Table("./data/ccp_normCountsBuettnerEtAl.counts.cycle_genes.csv")
+
+    nr,nc = tab.X.shape
+    Br = ro.r.matrix(tab.X, nrow=nr, ncol=nc)
+    ro.r.assign("tab", Br)
+
+    zr = ro.r('''
+    dat <- tab
+    fo <- as.matrix((dat != 0))
+    mode(fo) <- "integer"
+    m <- matrix(sample(0:1,nrow(dat)*ncol(dat), replace=TRUE, prob=c(1,2)),nrow(dat),ncol(dat))
+    dat <- dat*m
+    write.table(dat, file = "pCMF.csv",row.names=FALSE, na="",col.names=FALSE, sep=",")
+    zr <- fo*(1-m)
+    ''')
+
+    zeros = ro.r('fo')
+
+    numpy2ri.deactivate()
+    return zr, zeros
 
 
 def main(argv=None):
+    generate()
+    zr, zeros = zero_inflate()
 
+    # zr, zeros = zero_inflate_bioloski()
     from AnyQt.QtWidgets import QApplication
     # PyQt changes argv list in-place
     app = QApplication(list(argv) if argv else [])
@@ -248,9 +359,11 @@ def main(argv=None):
     if len(argv) > 1:
         filename = argv[1]
     else:
-        filename = "./data/ccp_normCountsBuettnerEtAl.counts.cycle_genes.csv"
+        filename = "./pCMF.csv"
+        # filename = "./data/_sc_aml-1k.csv"
 
-    ow = Impute(filename)
+
+    ow = Impute(filename, zr, zeros)
     ow.show()
     ow.raise_()
     dataset = Orange.data.Table(filename)
@@ -260,7 +373,10 @@ def main(argv=None):
     ow.set_data(None)
     ow.handleNewSignals()
     ow.onDeleteWidget()
-    call(["python", "owtable.py"])
+    # call(["python", "owtable.py"])
+    # call(["python", "owscaterplot.py"])
+    # call(["python", "owheatmap.py"])
+    # call(["python", "owdistribution.py"])
     return 0
 
 
