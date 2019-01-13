@@ -10,7 +10,7 @@ import owimpute
 # pCMF : [2, True, False, False, 8]
 
 # Generate sinthetic data
-owimpute.generate()
+# owimpute.generate()
 
 # Choose original filename
 
@@ -27,16 +27,17 @@ app = QApplication([])
 
 # Create object, set data and choose the method
 ow = owimpute.Impute(filename, zr, zeros)
+
 # dataset = Orange.data.Table("sinthetic_original_inflated.csv")
 dataset = Orange.data.Table("biological_inflated.csv")
 
 ow.set_data(dataset)
-results = ow.selection("pCMF", [2, True, False, False, 8])
-
+results = ow.selection("scvis", [0.0002, 10, 10, 0.001, 0, 1, 7])
 # originalno matriko
-original = Table(filename)
+# original = Table(filename)
 # original = read_csv(filename, sep=",", header= None)
 # original = Table.from_numpy(Orange.data.Domain.from_numpy(original.values), original.values)
 
-res = ow.compare(original)
+# res = ow.compare(original)
+res = ow.compare()
 print(res)

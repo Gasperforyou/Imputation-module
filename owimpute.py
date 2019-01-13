@@ -108,15 +108,14 @@ class Impute(OWWidget):
         if self.dataset is None:
             return
 
-        if self.zeros is not None:
-            self.dataset.X = self.dataset.X*self.zeros
-
         self.Outputs.sample.send(self.dataset)
         self.dataset.save("output.csv")
 
         # if method not scvis
         if self.imputation_method[0] != 5:
 
+            if self.zeros is not None:
+                self.dataset.X = self.dataset.X*self.zeros
 
             # razlika = ((original.X + numpy.amin(original.X))/numpy.amax(original.X)) - ((self.dataset.X + numpy.amin(self.dataset.X))/numpy.amax(self.dataset.X))
             # Table.from_numpy(Orange.data.Domain.from_numpy(razlika), razlika).save("difference.csv")
@@ -155,6 +154,8 @@ class Impute(OWWidget):
             res.append(p.correlation)
 
             return res
+        else:
+            return self.results
 
     # Izracunaj speraman koeficient po vrsticah
     def spearman(self, original):
@@ -352,17 +353,18 @@ class Impute(OWWidget):
         Table.from_numpy(Orange.data.Domain.from_numpy(razlika), razlika).save("difference.csv")
 
         self.spearman(data2)
-        print(self.spear)
         self.spear = numpy.delete(self.spear, numpy.where(numpy.isnan(self.spear))[0], 0)
-        print(numpy.absolute(self.spear[:, 0]).mean())
+        self.results.append(numpy.absolute(self.spear[:, 0]).mean())
         Table.from_numpy(Orange.data.Domain.from_numpy(self.spear), self.spear).save("correlation_c.csv")
+
         self.spearmanT(data2)
         self.spear = numpy.delete(self.spear, numpy.where(numpy.isnan(self.spear))[0], 0)
-        print(numpy.absolute(self.spear[:, 0]).mean())
+        self.results.append(numpy.absolute(self.spear[:, 0]).mean())
         Table.from_numpy(Orange.data.Domain.from_numpy(self.spear), self.spear).save("correlation_g.csv")
+
         p = scipy.stats.spearmanr(data, data2, axis = None)
-        print(p)
-        return
+        self.results.append(p.correlation)
+
 
     def pCMF(self):
         self.prepare_data()
