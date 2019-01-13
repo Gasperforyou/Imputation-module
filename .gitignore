@@ -7,3 +7,4 @@ output1
 *.metadata
 *.bin
 *.png
+__pycache__
