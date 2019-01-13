@@ -1,6 +1,9 @@
 data
-.\outtt
-.\output
+outtt
+output
+output1
+.\scvis-dev\*
 *.csv
 *.metadata
 *.bin
+*.png
