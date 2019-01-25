@@ -3,8 +3,9 @@ outtt
 output
 output1
 .\scvis-dev\*
-*.csv
+
 *.metadata
 *.bin
 *.png
 __pycache__
+*.r

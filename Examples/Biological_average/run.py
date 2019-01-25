@@ -30,7 +30,7 @@ ax1.set_title('thick edges')
 fig.colorbar(c, ax=ax1)
 
 fig.tight_layout()
-fig.savefig('foo.png')
+fig.savefig('biological_and_imputed.png')
 
 
 # np.savetxt("average.csv", res, delimiter=",")
