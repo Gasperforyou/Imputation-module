@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 
 # Load
-filename = "../data/ccp_normCounts_mESCquartz.counts.cycle_genes.csv"
+filename = "../../data/ccp_normCounts_mESCquartz.counts.cycle_genes.csv"
 dataset = Orange.data.Table(filename)
 
 mas, zero = scimpute.zero_inflate_bioloski(dataset.X)
@@ -32,6 +32,16 @@ fig.colorbar(c, ax=ax1)
 fig.tight_layout()
 fig.savefig('biological_and_imputed.png')
 
+x = np.genfromtxt('vrstice.csv', delimiter=',')
+y = np.genfromtxt('stolpci.csv', delimiter=',')
+
+fig, axs = plt.subplots(2, 1, sharey=True, tight_layout=True)
+
+# We can set the number of bins with the `bins` kwarg
+axs[0].hist(x[:, 0])
+axs[1].hist(y[:, 0])
+fig.tight_layout()
+fig.savefig('vrstice_stolpci.png')
 
 # np.savetxt("average.csv", res, delimiter=",")
 
