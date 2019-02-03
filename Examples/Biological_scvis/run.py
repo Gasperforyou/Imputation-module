@@ -9,15 +9,13 @@ import matplotlib.colors as colors
 # file_inflated = np.genfromtxt('biological_inflated.csv', delimiter=',')
 
 # Load
-filename = "./data/ccp_normCounts_mESCquartz.counts.cycle_genes.csv"
+filename = "../../data/ccp_normCounts_mESCquartz.counts.cycle_genes.csv"
 dataset = Orange.data.Table(filename)
 
 # Izracunaj vse potrebno
 dat, mas, zero = scimpute.zero_inflate_bioloski(dataset.X)
 sc = scimpute.ScImpute(dat)
 res = sc.scvis()
-print(res[0].shape)
-print(res[1].shape)
 cor, data = sc.compare(res[1][np.arange(res[0].shape[0]), :])
 print(cor)
 
@@ -49,14 +47,3 @@ axs[1].hist(y)
 axs[1].set_title('Korelacija po stolpcih')
 fig.tight_layout()
 fig.savefig('vrstice_stolpci.png')
-
-# np.savetxt("average.csv", res, delimiter=",")
-
-# res = sc.average()
-# np.savetxt("average.csv", res, delimiter=",")
-#
-# res = sc.median()
-# np.savetxt("median.csv", res, delimiter=",")
-#
-# res = sc.WMean_chisquared()
-# np.savetxt("WMean_chisquared.csv", res, delimiter=",")

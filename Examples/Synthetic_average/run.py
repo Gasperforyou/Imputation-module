@@ -5,38 +5,34 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 
-# how to load files into numpy
-# file_inflated = np.genfromtxt('biological_inflated.csv', delimiter=',')
 
-# Load
-filename = "../../data/ccp_normCounts_mESCquartz.counts.cycle_genes.csv"
-dataset = Orange.data.Table(filename)
 
-# Izracunaj vse potrebno
-dat, mas, zero = scimpute.zero_inflate_bioloski(dataset.X)
+# Izracunaj vse potrebno z uporabo modula
+data_org = scimpute.generate()
+dat, mas = scimpute.zero_inflate(data_org)
 sc = scimpute.ScImpute(dat)
 res = sc.average()
-cor, data = sc.compare(dataset.X, mas, zero)
+cor, data = sc.compare(data_org, mas)
 
 # Plotaj vse potrebno
 # Primerjava bioloskih podatkov z imputiranimi vrednostmi
 fig, (ax0, ax1) = plt.subplots(2, 1)
-c = ax0.pcolormesh(dataset.X, norm=colors.LogNorm(vmin=np.amin(dataset.X)+1, vmax=np.amax(dataset.X)), cmap=plt.get_cmap("binary"))
+c = ax0.pcolormesh(data_org, norm=colors.LogNorm(vmin=np.amin(data_org)+1, vmax=np.amax(data_org)), cmap=plt.get_cmap("binary"))
 fig.colorbar(c, ax=ax0)
-ax0.set_title('Biološki podatki')
+ax0.set_title('Sintetični podatki')
 
 c = ax1.pcolormesh(res,norm=colors.LogNorm(vmin=np.amin(res)+1, vmax=np.amax(res)), cmap=plt.get_cmap("binary"))
-ax1.set_title('Imputirani biološki podatki')
+ax1.set_title('Imputirani sintetični podatki')
 fig.colorbar(c, ax=ax1)
 
 fig.tight_layout()
-fig.savefig('biological_and_imputed.png')
+fig.savefig('synthetic_and_imputed.png')
 
 
 # plotanje razlike
 fig, (ax0) = plt.subplots()
-c = ax0.pcolormesh(dataset.X-res, norm=colors.LogNorm(vmin=np.amin(dataset.X)+1, vmax=np.amax(dataset.X)), cmap=plt.get_cmap("binary"))
-ax0.set_title('Razlika med bioloskimi podatki in imputacijo')
+c = ax0.pcolormesh(data_org-res, norm=colors.LogNorm(vmin=np.amin(data_org)+1, vmax=np.amax(data_org)), cmap=plt.get_cmap("binary"))
+ax0.set_title('Razlika med sintetičnimi in imputiranimi podatki')
 fig.colorbar(c, ax=ax0)
 
 fig.tight_layout()

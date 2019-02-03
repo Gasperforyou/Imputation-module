@@ -192,7 +192,7 @@ class ScImpute:
         trainer = UnsupervisedTrainer(vae, data ,train_size=tr_size, use_cuda=use_cuda ,frequency=freq)
         trainer.train(n_epochs=n_epochs, lr=lr)
 
-        # reconstruct the output matrix
+        # reconstruct the outpu matrix
         indices1 = trainer.train_set.indices
         indices2 = trainer.test_set.indices
         datac = np.append(trainer.train_set.sequential().imputation(), trainer.test_set.sequential().imputation() , axis=0)

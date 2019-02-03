@@ -15,8 +15,9 @@ dataset = Orange.data.Table(filename)
 # Izracunaj vse potrebno
 dat, mas, zero = scimpute.zero_inflate_bioloski(dataset.X)
 sc = scimpute.ScImpute(dat)
-res = sc.average()
+res = sc.scvi()
 cor, data = sc.compare(dataset.X, mas, zero)
+print(cor)
 
 # Plotaj vse potrebno
 # Primerjava bioloskih podatkov z imputiranimi vrednostmi
