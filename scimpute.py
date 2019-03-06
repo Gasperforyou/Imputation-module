@@ -23,6 +23,20 @@ class ScImpute:
         self.dataset = dataset
         self.output = np.copy(self.dataset)
 
+    def compare_embedded(self, data = None):
+
+        prva = []
+        for i in range(data[0].shape[0]):
+            for j in range(i+1, data[0].shape[0]):
+                prva.append(scipy.stats.spearmanr(data[0][i, :], data[0][j,:])[0])
+
+        druga  = []
+        for i in range(data[1].shape[0]):
+            for j in range(i+1, data[1].shape[0]):
+                druga.append(scipy.stats.spearmanr(data[1][i, :], data[1][j,:])[0])
+
+        cor = [np.mean(prva), np.mean(druga)]
+        return cor, [prva, druga]
     # Metode za racunanje spearmanovih koeicientov
     def compare(self, original = None, mask = None, zeros = None):
 
@@ -31,10 +45,6 @@ class ScImpute:
 
         res = []
         dat = []
-        # difference write on disk
-        # razlika = ((original - np.amin(original))/np.amax((original - np.amin(original)))) - ((self.output - np.amin(self.output))/np.amax((self.output - np.amin(self.output))))
-        # dat.append(razlika)
-        # np.savetxt("razlika.csv", razlika, delimiter=",")
 
 
         # spear po vrsticah
@@ -77,6 +87,9 @@ class ScImpute:
     def spearman(self, original):
         vec = np.zeros((original.shape[0], 2))
         for a in range(original.shape[0]):
+            if np.count_nonzero(original[a,:]) == 0 or np.count_nonzero(self.output[a,:]) == 0:
+                vec[a, 0] = np.nan
+                continue
             vec[a, 0] = scipy.stats.spearmanr(original[a,:], self.output[a,:])[0]
         self.spear = vec
         return
@@ -84,6 +97,10 @@ class ScImpute:
     def spearmanT(self, original):
         vec = np.zeros((original.shape[1], 2))
         for a in range(original.shape[1]):
+            # preskoci ničeln stolpce
+            if np.count_nonzero(original[:, a]) == 0 or np.count_nonzero(self.output[:,a]) == 0:
+                vec[a, 0] = np.nan
+                continue
             vec[a, 0] = scipy.stats.spearmanr(original[:,a], self.output[:,a])[0]
         self.spear = vec
         return
@@ -96,6 +113,10 @@ class ScImpute:
             # spearman rabi vsaj 3 nemaskirane vrednosti.
             # Preskoci vrstice s manj kot tremi vrednostmi.
             if(x[:,a].count()<3):
+                vec[a, 0] = np.nan
+                continue
+            # preskoci ničelne stolpce
+            if np.count_nonzero(x[a,:]) == 0 or np.count_nonzero(y[a,:]) == 0:
                 vec[a, 0] = np.nan
                 continue
             vec[a, 0] = scipy.stats.mstats.spearmanr(x[a,:], y[a,:])[0]
@@ -113,6 +134,10 @@ class ScImpute:
             # stolpec mora imeti vsaj 3 vrednosti za spearman funcijo
             # preskoci stolpce z manj kot 3 vrednostmi
             if(x[:,a].count()<3):
+                vec[a, 0] = np.nan
+                continue
+            # preskoci ničelne stolpce
+            if np.count_nonzero(x[:, a]) == 0 or np.count_nonzero(y[:, a]) == 0:
                 vec[a, 0] = np.nan
                 continue
             vec[a, 0] = scipy.stats.mstats.spearmanr(x[:,a], y[:,a])[0]
@@ -216,12 +241,12 @@ class ScImpute:
 
             d = {'print.me': 'print_dot_me', 'print_me': 'print_uscore_me'}
             try:
-                pCMF = importr('pCMF', robject_translations = d, lib_loc = "C:/Users/Gasper/Documents/R/win-library/3.4")
+                pCMF = importr('pCMF', robject_translations = d)
             except:
                 print("error")
 
             try:
-                labeling = importr('labeling', robject_translations = d, lib_loc = "C:/Users/Gasper/Documents/R/win-library/3.4")
+                labeling = importr('labeling', robject_translations = d)
             except:
                 print("error")
 
@@ -264,9 +289,10 @@ class ScImpute:
     def scvis(self, **kwargs):
         data2 = None
         with tempfile.TemporaryDirectory() as tmpdirname:
-            idx = np.random.randint(self.dataset.shape[0], size=int(self.dataset.shape[0]*0.75))
-            df2 = DataFrame(self.dataset[idx, :], columns=self.dataset.dtype.names).to_csv(tmpdirname+"/tmp_train_scvis.csv", sep='\t')
-            df2 = DataFrame(self.dataset, columns=self.dataset.dtype.names).to_csv(tmpdirname+"/tmp.csv", sep='\t')
+            idx1 = np.arange(int(self.dataset.shape[0]*0.75))
+            idx2 = np.arange(int(self.dataset.shape[0]*0.75), int(self.dataset.shape[0]))
+            df2 = DataFrame(self.dataset[idx1, :], columns=self.dataset.dtype.names).to_csv(tmpdirname+"/tmp_train_scvis.csv", sep='\t')
+            df2 = DataFrame(self.dataset[idx2, :], columns=self.dataset.dtype.names).to_csv(tmpdirname+"/tmp.csv", sep='\t')
 
 
             # Create configuration file
@@ -324,12 +350,12 @@ def generate():
     utils = importr("utils")
     d = {'print.me': 'print_dot_me', 'print_me': 'print_uscore_me'}
     try:
-        pCMF = importr('pCMF', robject_translations = d, lib_loc = "C:/Users/Gasper/Documents/R/win-library/3.4")
+        pCMF = importr('pCMF', robject_translations = d)
     except:
         print("error")
 
     try:
-        labeling = importr('labeling', robject_translations = d, lib_loc = "C:/Users/Gasper/Documents/R/win-library/3.4")
+        labeling = importr('labeling', robject_translations = d)
     except:
         print("error")
     numpy2ri.activate()
@@ -357,44 +383,22 @@ def generate():
     data = ro.r('X')
     numpy2ri.deactivate()
     return data
-# Metoda za umetno brisanje podatkov
-def zero_inflate(file):
-    numpy2ri.activate()
-    nr,nc = file.shape
-    Br = ro.r.matrix(file, nrow=nr, ncol=nc)
-    ro.r.assign("dat", Br)
-    ro.r('''
-    # dat <- read.csv(file='sinthetic_original.csv', header = FALSE)
-    # dat <- as.matrix(dat)
-    m <- matrix(sample(0:1,nrow(dat)*ncol(dat), replace=TRUE, prob=c(1,2)),nrow(dat),ncol(dat))
-    dat <- dat*m
-    # write.table(dat, file = "sinthetic_original_inflated.csv",row.names=FALSE, na="",col.names=FALSE, sep=",")
-    zr <- (1-m)
-    ''')
-    data = ro.r('dat')
-    zer = ro.r('zr')
-    numpy2ri.deactivate()
-    return data, zer
+
 # Metoda za za umetno brisanje podatkov na bioloskih podatkih
-def zero_inflate_bioloski(file):
+def zero_inflate(file):
     utils = importr("utils")
     numpy2ri.activate()
-
-
     nr,nc = file.shape
     Br = ro.r.matrix(file, nrow=nr, ncol=nc)
     ro.r.assign("tab", Br)
-
     zr = ro.r('''
     dat <- tab
     fo <- as.matrix((dat != 0))
     mode(fo) <- "integer"
     m <- matrix(sample(0:1,nrow(dat)*ncol(dat), replace=TRUE, prob=c(1,3)),nrow(dat),ncol(dat))
     dat <- dat*m
-    # write.table(dat, file = "biological_inflated.csv",row.names=FALSE, na="",col.names=FALSE, sep=",")
     zr <- fo*(1-m)
     ''')
-
     zeros = ro.r('fo')
     data = ro.r('dat')
     numpy2ri.deactivate()

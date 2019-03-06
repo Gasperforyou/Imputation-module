@@ -6,6 +6,6 @@ output1
 
 *.metadata
 *.bin
-*.png
+
 __pycache__
 *.r
