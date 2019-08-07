@@ -1,5 +1,5 @@
 import sys
-sys.path.append("../..")
+sys.path.append("..\..")
 import scimpute
 import Orange.data
 from Orange.data import Table
@@ -16,10 +16,17 @@ dataset = Orange.data.Table(filename)
 
 # Izracunaj vse potrebno
 dat, mas, zero = scimpute.zero_inflate(dataset.X)
-sc = scimpute.ScImpute(dat)
-res = sc.scvis()
+sc = scimpute.ScImpute(dataset.X)
+res = sc.scvis(dat)
 cor, data = sc.compare_embedded(res)
 print(cor)
+razlika1 = []
+razlika2 = []
+for x in range(len(data[0])):
+    if(data[0][x]>0.7 or data[0][x]<-0.7):
+        razlika1.append(data[1][x]-data[0][x])
+    if(data[0][x]<0.3 or data[0][x]>-0.3):
+        razlika2.append(data[1][x]-data[0][x])
 
 # Plotaj vse potrebno
 # Primerjava bioloskih podatkov z imputiranimi vrednostmi
@@ -38,14 +45,11 @@ fig.savefig('Latent1_latent2.png')
 
 # Histogrami korelacij.
 
-x = data[0]
-y = data[1]
-
 fig, axs = plt.subplots(2, 1)
 
-axs[0].hist(x)
-axs[0].set_title('Korelacija na učnih podatkih')
-axs[1].hist(y)
-axs[1].set_title('Korelacija na testnih podatkih')
+axs[0].hist(razlika1)
+axs[0].set_title('Korelacija večja od 0.7 in manjša od -0.7')
+axs[1].hist(razlika2)
+axs[1].set_title('Korelacija manjša od 0.3 in večja od -0.3')
 fig.tight_layout()
 fig.savefig('vrstice_stolpci.png')

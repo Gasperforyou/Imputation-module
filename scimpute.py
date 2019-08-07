@@ -286,13 +286,11 @@ class ScImpute:
             self.output = np.asarray(ro.r.out)
         return self.output
 
-    def scvis(self, **kwargs):
+    def scvis(self, inflated, **kwargs):
         data2 = None
         with tempfile.TemporaryDirectory() as tmpdirname:
-            idx1 = np.arange(int(self.dataset.shape[0]*0.75))
-            idx2 = np.arange(int(self.dataset.shape[0]*0.75), int(self.dataset.shape[0]))
-            df2 = DataFrame(self.dataset[idx1, :], columns=self.dataset.dtype.names).to_csv(tmpdirname+"/tmp_train_scvis.csv", sep='\t')
-            df2 = DataFrame(self.dataset[idx2, :], columns=self.dataset.dtype.names).to_csv(tmpdirname+"/tmp.csv", sep='\t')
+            DataFrame(inflated, columns=self.dataset.dtype.names).to_csv(tmpdirname+"/tmp_train_scvis.csv", sep='\t')
+            DataFrame(self.dataset, columns=self.dataset.dtype.names).to_csv(tmpdirname+"/tmp.csv", sep='\t')
 
 
             # Create configuration file
@@ -300,14 +298,14 @@ class ScImpute:
             hyperparameter = dict(
                 optimization = dict(
                 method = "Adam",
-                learning_rate = kwargs["learning_rate"] if "learning_rate" in kwargs else 0.0002
+                learning_rate = kwargs["learning_rate"] if "learning_rate" in kwargs else 0.007
                 ),
 
                 batch_size = kwargs["batch_size"] if "batch_size" in kwargs else 10,
                 max_epoch = kwargs["max_epoch"] if "max_epoch" in kwargs else 10,
-                regularizer_l2 = kwargs["regularizer_l2"] if "regularizer_l2" in kwargs else 0.001,
+                regularizer_l2 = kwargs["regularizer_l2"] if "regularizer_l2" in kwargs else 0.01,
 
-                perplexity = kwargs["perplexity"] if "perplexity" in kwargs else 0,
+                perplexity = kwargs["perplexity"] if "perplexity" in kwargs else 10,
 
                 seed = kwargs["seed"] if "seed" in kwargs else 1
                 )
@@ -315,7 +313,7 @@ class ScImpute:
 
             data2 = dict(
             architecture = dict(
-                    latent_dimension = kwargs["latent_dimension"] if "latent_dimension" in kwargs else 7,
+                    latent_dimension = kwargs["latent_dimension"] if "latent_dimension" in kwargs else 15,
 
                     inference = dict(
                     layer_size = [128, 64, 32],
@@ -333,13 +331,13 @@ class ScImpute:
                 yaml.dump(data2, outfile)
 
             # call train option
-            call(["python", "./scvis-dev/scvis", "train", "--data_matrix_file", tmpdirname+"\\tmp_train_scvis.csv", "--config_file", tmpdirname+"\\model_config.yaml" , "--show_plot", "--verbose", "--verbose_interval", "50", "--out_dir", tmpdirname+"\\output"])
+            call(["python", "..\\..\\scvis-dev\\scvis", "train", "--data_matrix_file", tmpdirname+"\\tmp_train_scvis.csv", "--config_file", tmpdirname+"\\model_config.yaml" , "--show_plot", "--verbose", "--verbose_interval", "50", "--out_dir", tmpdirname+"\\output"])
             data = read_csv(tmpdirname+"\\output\\traned_data.tsv", sep="\t")
             data = data.drop(data.columns[0], axis=1)
             self.output = data.values
 
             # call map option
-            call(["python", ".\scvis-dev\scvis", "map", "--data_matrix_file", tmpdirname+"\\tmp.csv", "--config_file", tmpdirname+"\\model_config.yaml", "--out_dir", tmpdirname+"\\output1", "--pretrained_model_file", tmpdirname+"\\output\\model\\traned_data.ckpt"])
+            call(["python", "..\\..\\scvis-dev\\scvis", "map", "--data_matrix_file", tmpdirname+"\\tmp.csv", "--config_file", tmpdirname+"\\model_config.yaml", "--out_dir", tmpdirname+"\\output1", "--pretrained_model_file", tmpdirname+"\\output\\model\\traned_data.ckpt"])
             # read results
             data2 = read_csv(tmpdirname+"\\output1\\mapped.tsv", sep="\t")
             data2 = data2.drop(data2.columns[0], axis=1)
@@ -360,6 +358,7 @@ def generate():
         print("error")
     numpy2ri.activate()
     ro.r('''
+        set.seed(1)
         n <- 100
         p <- 300
         K <- 3
@@ -392,6 +391,7 @@ def zero_inflate(file):
     Br = ro.r.matrix(file, nrow=nr, ncol=nc)
     ro.r.assign("tab", Br)
     zr = ro.r('''
+    set.seed(1)
     dat <- tab
     fo <- as.matrix((dat != 0))
     mode(fo) <- "integer"
