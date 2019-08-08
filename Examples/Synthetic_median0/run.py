@@ -37,14 +37,17 @@ fig.savefig('synthetic_and_imputed.png')
 # histogrami matrik
 fig, (ax0, ax1, ax2) = plt.subplots(3, 1)
 
-ax0.hist(data_org.flatten())
+ax0.hist(data_org.flatten(), bins = 20)
 ax0.set_title('Histogram sintetičnih podatkov')
 
-ax1.hist(res.flatten())
+ax1.hist(res.flatten(), bins = 20)
 ax1.set_title('Histogram imputiranih podatkov')
 
-ax2.hist((data_org-res).flatten())
+ax2.hist((data_org-res).flatten(), bins = 20)
 ax2.set_title('Histogram razlike med sintetičnimi in imputiranimi podatki')
+ax0.set_xlabel('Ekspresija genov')
+ax1.set_xlabel('Ekspresija genov')
+ax2.set_xlabel('Ekspresija genov')
 fig.tight_layout()
 fig.savefig('histogram_matrik.png')
 

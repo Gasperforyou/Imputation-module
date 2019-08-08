@@ -43,14 +43,15 @@ fig.savefig('biological_and_imputed.png')
 # histogrami matrik
 fig, (ax0, ax1, ax2) = plt.subplots(3, 1)
 
-ax0.hist(dataset.X.flatten(), range=(np.amin(dataset.X), 400))
+ax0.hist(dataset.X.flatten(), range=(np.amin(dataset.X), 400), bins = 20)
 ax0.set_title('Histogram bioloških podatkov')
-
-ax1.hist(res.flatten(), range=(np.amin(dataset.X), 600))
+ax0.set_xlabel('Ekspresija genov')
+ax1.hist(res.flatten(), range=(np.amin(dataset.X), 600), bins = 20)
 ax1.set_title('Histogram imputiranih podatkov')
-
-ax2.hist((dataset.X-res).flatten(), range=(-100, 100))
+ax1.set_xlabel('Ekspresija genov')
+ax2.hist((dataset.X-res).flatten(), range=(-100, 100), bins = 20)
 ax2.set_title('Histogram razlike med biološkimi in imputiranimi podatki')
+ax2.set_xlabel('Ekspresija genov')
 fig.tight_layout()
 fig.savefig('histogram_matrik.png')
 

@@ -259,6 +259,7 @@ class ScImpute:
 
             # Execute R code
             ro.r('''
+            set.seed(1)
             path <- paste(tmpdirname, 'tmp.csv', sep = '/')
             dat <- read.csv(file=path, header = FALSE)
             dat <- as.matrix(dat)
