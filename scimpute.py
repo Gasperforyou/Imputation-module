@@ -302,11 +302,11 @@ class ScImpute:
                 learning_rate = kwargs["learning_rate"] if "learning_rate" in kwargs else 0.007
                 ),
 
-                batch_size = kwargs["batch_size"] if "batch_size" in kwargs else 10,
+                batch_size = kwargs["batch_size"] if "batch_size" in kwargs else 12,
                 max_epoch = kwargs["max_epoch"] if "max_epoch" in kwargs else 10,
-                regularizer_l2 = kwargs["regularizer_l2"] if "regularizer_l2" in kwargs else 0.01,
+                regularizer_l2 = kwargs["regularizer_l2"] if "regularizer_l2" in kwargs else 0.1,
 
-                perplexity = kwargs["perplexity"] if "perplexity" in kwargs else 10,
+                perplexity = kwargs["perplexity"] if "perplexity" in kwargs else 5,
 
                 seed = kwargs["seed"] if "seed" in kwargs else 1
                 )

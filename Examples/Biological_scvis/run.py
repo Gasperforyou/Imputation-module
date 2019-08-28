@@ -19,14 +19,18 @@ dat, mas, zero = scimpute.zero_inflate(dataset.X)
 sc = scimpute.ScImpute(dataset.X)
 res = sc.scvis(dat)
 cor, data = sc.compare_embedded(res)
+
+
 print(cor)
 razlika1 = []
 razlika2 = []
 for x in range(len(data[0])):
     if(data[0][x]>0.7 or data[0][x]<-0.7):
         razlika1.append(data[1][x]-data[0][x])
-    if(data[0][x]<0.3 or data[0][x]>-0.3):
+    if(data[0][x]<0.3 and data[0][x]>-0.3):
         razlika2.append(data[1][x]-data[0][x])
+
+
 
 # Plotaj vse potrebno
 # Primerjava bioloskih podatkov z imputiranimi vrednostmi
